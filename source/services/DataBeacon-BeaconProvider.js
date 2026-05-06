@@ -405,6 +405,141 @@ class DataBeaconBeaconProvider extends libFableServiceProviderBase
 								Log: []
 							});
 						}
+					},
+					'CreateConnection':
+					{
+						// Idempotent connection provisioning via the mesh.
+						// Mirrors POST /beacon/connection but reachable as a
+						// typed capability so other beacons (e.g. retold-data-mapper)
+						// can self-bootstrap their config storage on first launch
+						// without an operator visiting the databeacon's web UI.
+						//
+						// Idempotent: if a connection with the same Name already
+						// exists it returns the existing IDBeaconConnection
+						// (Created=false). Caller can rely on safe re-runs.
+						//
+						// Settings:
+						//   Name        — display name + lookup key for idempotency
+						//   Type        — 'SQLite' | 'MySQL' | 'PostgreSQL' | ...
+						//   Config      — connection settings; object preferred, string accepted
+						//   AutoConnect — if true, connect immediately after create + restore endpoints
+						//   Description — optional human-readable description
+						Description: 'Create a database connection on this databeacon (idempotent by Name)',
+						SettingsSchema:
+						[
+							{ Name: 'Name',        DataType: 'String',  Required: true  },
+							{ Name: 'Type',        DataType: 'String',  Required: true  },
+							{ Name: 'Config',      DataType: 'Object',  Required: true  },
+							{ Name: 'AutoConnect', DataType: 'Boolean', Required: false },
+							{ Name: 'Description', DataType: 'String',  Required: false }
+						],
+						Handler: function (pWorkItem, pContext, fHandlerCallback)
+						{
+							let tmpSettings = pWorkItem.Settings || {};
+							if (!tmpFable.DAL || !tmpFable.DAL.BeaconConnection)
+							{
+								return fHandlerCallback(new Error('CreateConnection: BeaconConnection DAL not initialized'));
+							}
+							let tmpName = String(tmpSettings.Name || '').trim();
+							if (!tmpName)
+							{
+								return fHandlerCallback(new Error('CreateConnection: Name is required'));
+							}
+							let tmpType = String(tmpSettings.Type || '').trim();
+							if (!tmpType)
+							{
+								return fHandlerCallback(new Error('CreateConnection: Type is required'));
+							}
+							let tmpConfigStr = (typeof tmpSettings.Config === 'string')
+								? tmpSettings.Config
+								: JSON.stringify(tmpSettings.Config || {});
+
+							let tmpBridge = tmpFable.DataBeaconConnectionBridge;
+
+							// Idempotency probe — find by Name so re-runs are safe.
+							let tmpFindQuery = tmpFable.DAL.BeaconConnection.query.clone()
+								.addFilter('Name', tmpName)
+								.addFilter('Deleted', 0);
+							tmpFable.DAL.BeaconConnection.doRead(tmpFindQuery, (pFindErr, pFindQ, pExisting) =>
+							{
+								// Existing → return its ID (no overwrite of Config — the
+								// expected use case is "make sure this connection exists",
+								// not "reset it to these values"). Operator can edit via UI.
+								if (!pFindErr && pExisting && pExisting.IDBeaconConnection)
+								{
+									return _maybeAutoConnect(pExisting, /*Created=*/false);
+								}
+								// Insert.
+								let tmpRecord =
+								{
+									Name:        tmpName,
+									Type:        tmpType,
+									Config:      tmpConfigStr,
+									Status:      'Untested',
+									AutoConnect: tmpSettings.AutoConnect ? 1 : 0,
+									Description: tmpSettings.Description || ''
+								};
+								let tmpCreateQuery = tmpFable.DAL.BeaconConnection.query.clone()
+									.setIDUser(0)
+									.addRecord(tmpRecord);
+								tmpFable.DAL.BeaconConnection.doCreate(tmpCreateQuery,
+									(pCreateErr, pCreateQ, pCreateRead, pNew) =>
+									{
+										if (pCreateErr) return fHandlerCallback(pCreateErr);
+										return _maybeAutoConnect(pNew, /*Created=*/true);
+									});
+							});
+
+							function _maybeAutoConnect(pConn, pCreated)
+							{
+								if (!tmpSettings.AutoConnect || !tmpBridge)
+								{
+									return fHandlerCallback(null,
+									{
+										Outputs:
+										{
+											IDBeaconConnection: pConn.IDBeaconConnection,
+											Name:               pConn.Name,
+											Type:               pConn.Type,
+											Created:            pCreated,
+											Connected:          tmpBridge ? tmpBridge.isConnected(pConn.IDBeaconConnection) : false
+										},
+										Log: []
+									});
+								}
+								// AutoConnect=true: bring the runtime up. Idempotent —
+								// _connectRuntime handles already-connected by reconnecting.
+								tmpBridge._connectRuntime(pConn, (pConnErr) =>
+								{
+									let tmpEndpointMgr = tmpFable.DataBeaconDynamicEndpointManager;
+									let fFinish = (pConnected) =>
+									{
+										fHandlerCallback(null,
+										{
+											Outputs:
+											{
+												IDBeaconConnection: pConn.IDBeaconConnection,
+												Name:               pConn.Name,
+												Type:               pConn.Type,
+												Created:            pCreated,
+												Connected:          pConnected,
+												ConnectError:       pConnErr ? (pConnErr.message || String(pConnErr)) : null
+											},
+											Log: []
+										});
+									};
+									if (!pConnErr && tmpEndpointMgr && typeof tmpEndpointMgr.restoreEnabledEndpointsForConnection === 'function')
+									{
+										tmpEndpointMgr.restoreEnabledEndpointsForConnection(pConn.IDBeaconConnection,
+											() => fFinish(true));
+									}
+									else
+									{
+										fFinish(!pConnErr);
+									}
+								});
+							}
+						}
 					}
 				}
 			});
