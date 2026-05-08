@@ -772,6 +772,145 @@ suite
 					}
 				);
 
+				// ----------------------------------------------------------------
+				// Parameterized-query path (used by SQLJoin keyset pagination).
+				// ----------------------------------------------------------------
+
+				test
+				(
+					'PostgreSQL: forwards positional params to pool.query',
+					function (fDone)
+					{
+						let tmpSeenSQL    = null;
+						let tmpSeenParams = null;
+						let tmpResult = { rows: [ { id: 42 } ] };
+						let tmpProvider =
+						{
+							pool:
+							{
+								query: function (pSQL, pParams, fCb)
+								{
+									tmpSeenSQL    = pSQL;
+									tmpSeenParams = pParams;
+									return fCb(null, tmpResult);
+								}
+							}
+						};
+						_Introspector._runQuery('PostgreSQL', tmpProvider, 'SELECT * FROM t WHERE id > $1', [12345], function (pError, pResult)
+						{
+							libAssert.ifError(pError);
+							libAssert.deepStrictEqual(pResult, tmpResult.rows);
+							libAssert.strictEqual(tmpSeenSQL, 'SELECT * FROM t WHERE id > $1');
+							libAssert.deepStrictEqual(tmpSeenParams, [12345]);
+							return fDone();
+						});
+					}
+				);
+
+				test
+				(
+					'MySQL: forwards positional params to pool.query',
+					function (fDone)
+					{
+						let tmpSeenParams = null;
+						let tmpRows = [ { id: 7 } ];
+						let tmpProvider =
+						{
+							pool:
+							{
+								query: function (pSQL, pParams, fCb)
+								{
+									tmpSeenParams = pParams;
+									return fCb(null, tmpRows);
+								}
+							}
+						};
+						_Introspector._runQuery('MySQL', tmpProvider, 'SELECT * FROM t WHERE id > ?', [99], function (pError, pResult)
+						{
+							libAssert.ifError(pError);
+							libAssert.deepStrictEqual(pResult, tmpRows);
+							libAssert.deepStrictEqual(tmpSeenParams, [99]);
+							return fDone();
+						});
+					}
+				);
+
+				test
+				(
+					'SQLite: spreads params into prepare().all(...)',
+					function (fDone)
+					{
+						let tmpSeenAllArgs = null;
+						let tmpRows = [ { v: 1 } ];
+						let tmpProvider =
+						{
+							db:
+							{
+								prepare: function (pSQL)
+								{
+									return { all: function (...pArgs) { tmpSeenAllArgs = pArgs; return tmpRows; } };
+								}
+							}
+						};
+						_Introspector._runQuery('SQLite', tmpProvider, 'SELECT * FROM t WHERE id > ?', [3], function (pError, pResult)
+						{
+							libAssert.ifError(pError);
+							libAssert.deepStrictEqual(pResult, tmpRows);
+							libAssert.deepStrictEqual(tmpSeenAllArgs, [3]);
+							return fDone();
+						});
+					}
+				);
+
+				test
+				(
+					'MSSQL: binds positional params as @p1, @p2, ...',
+					function (fDone)
+					{
+						let tmpInputs = {};
+						let tmpProvider =
+						{
+							pool:
+							{
+								request: function ()
+								{
+									return {
+										input: function (pName, pValue) { tmpInputs[pName] = pValue; return this; },
+										query: function (pSQL) { return Promise.resolve({ recordset: [], rowsAffected: [0] }); }
+									};
+								}
+							}
+						};
+						_Introspector._runQuery('MSSQL', tmpProvider, 'SELECT * FROM t WHERE id > @p1', [555], function (pError, pResult)
+						{
+							libAssert.ifError(pError);
+							libAssert.deepStrictEqual(tmpInputs, { p1: 555 });
+							return fDone();
+						});
+					}
+				);
+
+				test
+				(
+					'_runQuery back-compat: 4-arg form (no params) still dispatches',
+					function (fDone)
+					{
+						// Same as the existing MySQL test above but proves the
+						// arity-detection branch keeps the legacy callsite working.
+						let tmpRows = [ { id: 1 } ];
+						let tmpProvider =
+						{
+							pool: { query: function (pSQL, fCb) { return fCb(null, tmpRows); } }
+						};
+						_Introspector._runQuery('MySQL', tmpProvider, 'SELECT 1', function (pError, pResult)
+						{
+							libAssert.ifError(pError);
+							libAssert.deepStrictEqual(pResult, tmpRows);
+							return fDone();
+						});
+					}
+				);
+
 				test
 				(
 					'MongoDB find: returns cursor.toArray() rows and applies limit',

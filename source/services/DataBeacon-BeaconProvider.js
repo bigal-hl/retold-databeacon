@@ -16,6 +16,8 @@ const libMeadowProxyProvider = require('./DataBeacon-MeadowProxyProvider.js');
 const { registerMeadowProxyCapability, extendPathAllowlist, setAllowWrites, getActiveConfig } = libMeadowProxyProvider;
 const DataBeaconSchemaManager = require('./DataBeacon-SchemaManager.js');
 const { registerSchemaCapability } = DataBeaconSchemaManager;
+const { buildAggregateSQL } = require('./DataBeacon-SQLEmitter-Aggregate.js');
+const { buildJoinPagedSQL } = require('./DataBeacon-SQLEmitter-Join.js');
 
 let libBeaconService = null;
 try
@@ -271,6 +273,186 @@ class DataBeaconBeaconProvider extends libFableServiceProviderBase
 										return fHandlerCallback(pError);
 									}
 									return fHandlerCallback(null, { Outputs: { Rows: pResults, RowCount: Array.isArray(pResults) ? pResults.length : 0 }, Log: [] });
+								});
+						}
+					},
+					'Aggregate':
+					{
+						// Push GROUP BY into the source DB. Used by the data-mapper's
+						// SQLAggregate operation type (streaming-layout counterpart of
+						// the in-memory Aggregation). The structured spec is bundled
+						// inside an Object-typed AggregateSpec setting so UV's settings
+						// resolver doesn't template-strip it.
+						Description: 'Run a structured GROUP BY query against a connected database and return the aggregated rows.',
+						SettingsSchema:
+						[
+							{ Name: 'IDBeaconConnection', DataType: 'Number', Required: true },
+							{ Name: 'AggregateSpec',      DataType: 'Object', Required: true }
+						],
+						Handler: function (pWorkItem, pContext, fHandlerCallback)
+						{
+							let tmpSettings = pWorkItem.Settings || {};
+							let tmpConnID = tmpSettings.IDBeaconConnection;
+							let tmpSpec = tmpSettings.AggregateSpec;
+
+							if (typeof(tmpSpec) === 'string')
+							{
+								try { tmpSpec = JSON.parse(tmpSpec); }
+								catch (pParseErr)
+								{
+									return fHandlerCallback(new Error('Aggregate: AggregateSpec was a string but failed to parse as JSON: ' + pParseErr.message));
+								}
+							}
+
+							if (!tmpFable.DAL || !tmpFable.DAL.BeaconConnection)
+							{
+								return fHandlerCallback(new Error('Aggregate: BeaconConnection DAL not initialized.'));
+							}
+
+							let tmpReadQuery = tmpFable.DAL.BeaconConnection.query.clone()
+								.addFilter('IDBeaconConnection', tmpConnID);
+
+							tmpFable.DAL.BeaconConnection.doRead(tmpReadQuery,
+								(pReadError, pReadQuery, pConnectionRecord) =>
+								{
+									if (pReadError || !pConnectionRecord)
+									{
+										return fHandlerCallback(new Error('Aggregate: connection record not found for IDBeaconConnection=' + tmpConnID));
+									}
+
+									let tmpType = pConnectionRecord.Type;
+									let tmpSQL;
+									try
+									{
+										tmpSQL = buildAggregateSQL(tmpType, tmpSpec);
+									}
+									catch (pBuildError)
+									{
+										return fHandlerCallback(pBuildError);
+									}
+
+									let tmpStart = Date.now();
+									tmpFable.DataBeaconSchemaIntrospector.executeQuery(tmpConnID, tmpSQL,
+										(pError, pResults) =>
+										{
+											if (pError)
+											{
+												if (tmpFable.log) { tmpFable.log.warn('Aggregate: ' + tmpType + ' query failed: ' + pError.message + ' :: ' + tmpSQL); }
+												return fHandlerCallback(pError);
+											}
+											let tmpElapsed = Date.now() - tmpStart;
+											let tmpRows = Array.isArray(pResults) ? pResults : [];
+											if (tmpFable.log) { tmpFable.log.info('Aggregate: ' + tmpType + ' returned ' + tmpRows.length + ' row(s) in ' + tmpElapsed + 'ms'); }
+											return fHandlerCallback(null,
+												{
+													Outputs:
+													{
+														Rows: tmpRows,
+														RowCount: tmpRows.length,
+														ElapsedMs: tmpElapsed,
+														SQL: tmpSQL
+													},
+													Log: []
+												});
+										});
+								});
+						}
+					},
+					'Join':
+					{
+						// Push an INNER JOIN into the source DB. Used by the data-mapper's
+						// SQLJoin operation type (streaming-layout counterpart of the
+						// in-memory Intersection). Returns one paged batch of joined rows;
+						// the data-mapper loops it offset-by-offset until short read.
+						// Both sides of the join must live on the same connection — for
+						// cross-DB joins, fall back to the in-memory Intersection layout.
+						Description: 'Run a paged INNER JOIN against a connected database (source + related must be co-located on the same connection) and return the joined rows.',
+						SettingsSchema:
+						[
+							{ Name: 'IDBeaconConnection', DataType: 'Number', Required: true },
+							{ Name: 'JoinSpec',           DataType: 'Object', Required: true }
+						],
+						Handler: function (pWorkItem, pContext, fHandlerCallback)
+						{
+							let tmpSettings = pWorkItem.Settings || {};
+							let tmpConnID = tmpSettings.IDBeaconConnection;
+							let tmpSpec = tmpSettings.JoinSpec;
+
+							if (typeof(tmpSpec) === 'string')
+							{
+								try { tmpSpec = JSON.parse(tmpSpec); }
+								catch (pParseErr)
+								{
+									return fHandlerCallback(new Error('Join: JoinSpec was a string but failed to parse as JSON: ' + pParseErr.message));
+								}
+							}
+
+							if (!tmpFable.DAL || !tmpFable.DAL.BeaconConnection)
+							{
+								return fHandlerCallback(new Error('Join: BeaconConnection DAL not initialized.'));
+							}
+
+							let tmpReadQuery = tmpFable.DAL.BeaconConnection.query.clone()
+								.addFilter('IDBeaconConnection', tmpConnID);
+
+							tmpFable.DAL.BeaconConnection.doRead(tmpReadQuery,
+								(pReadError, pReadQuery, pConnectionRecord) =>
+								{
+									if (pReadError || !pConnectionRecord)
+									{
+										return fHandlerCallback(new Error('Join: connection record not found for IDBeaconConnection=' + tmpConnID));
+									}
+
+									let tmpType = pConnectionRecord.Type;
+									let tmpBuilt;
+									try
+									{
+										tmpBuilt = buildJoinPagedSQL(tmpType, tmpSpec);
+									}
+									catch (pBuildError)
+									{
+										return fHandlerCallback(pBuildError);
+									}
+									let tmpSQL = tmpBuilt.SQL;
+									let tmpParams = tmpBuilt.Params || [];
+									let tmpCursorField = tmpBuilt.CursorField;
+
+									let tmpStart = Date.now();
+									tmpFable.DataBeaconSchemaIntrospector.executeQuery(tmpConnID, tmpSQL, tmpParams,
+										(pError, pResults) =>
+										{
+											if (pError)
+											{
+												if (tmpFable.log) { tmpFable.log.warn('Join: ' + tmpType + ' query failed: ' + pError.message + ' :: ' + tmpSQL); }
+												return fHandlerCallback(pError);
+											}
+											let tmpElapsed = Date.now() - tmpStart;
+											let tmpRows = Array.isArray(pResults) ? pResults : [];
+											let tmpCursorTag;
+											if (Object.prototype.hasOwnProperty.call(tmpSpec, 'AfterValue'))
+											{
+												tmpCursorTag = 'after=' + ((tmpSpec.AfterValue === null) ? 'null' : JSON.stringify(tmpSpec.AfterValue));
+											}
+											else
+											{
+												tmpCursorTag = 'offset=' + (tmpSpec.Offset || 0);
+											}
+											if (tmpFable.log) { tmpFable.log.info('Join: ' + tmpType + ' returned ' + tmpRows.length + ' row(s) in ' + tmpElapsed + 'ms (' + tmpCursorTag + ', limit=' + (tmpSpec.Limit || 500) + ')'); }
+											return fHandlerCallback(null,
+												{
+													Outputs:
+													{
+														Rows: tmpRows,
+														RowCount: tmpRows.length,
+														ElapsedMs: tmpElapsed,
+														Offset: tmpSpec.Offset || 0,
+														AfterValue: (Object.prototype.hasOwnProperty.call(tmpSpec, 'AfterValue') ? tmpSpec.AfterValue : null),
+														CursorField: tmpCursorField,
+														SQL: tmpSQL
+													},
+													Log: []
+												});
+										});
 								});
 						}
 					}

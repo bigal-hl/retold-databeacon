@@ -249,12 +249,19 @@ const registerMeadowProxyCapability = function (pBeaconService, pFable, pOptions
 								if (tmpLog) { tmpLog.info(`MeadowProxy: ${tmpMethod} ${tmpPath} status=${pResult.Status} elapsed=${tmpElapsed}ms user=${tmpRemoteUser}`); }
 								// Ultravisor-beacon Client expects { Outputs, Log } — results
 								// outside the Outputs envelope are dropped on the floor.
+								// Headers are forwarded so callers can see meadow's
+								// X-Meadow-Upsert-{Total,Succeeded,Errored} counts on
+								// bulk /Upserts; without them, a chunk where every row
+								// failed (postgres type errors, missing table, NOT NULL
+								// violations) returns HTTP 200 with body=[] and the
+								// caller can't tell success from total failure.
 								return fHandlerCallback(null,
 									{
 										Outputs:
 										{
-											Status: pResult.Status,
-											Body: pResult.Body
+											Status:  pResult.Status,
+											Headers: pResult.Headers || {},
+											Body:    pResult.Body
 										},
 										Log: []
 									});

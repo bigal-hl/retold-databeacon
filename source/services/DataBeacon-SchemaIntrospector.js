@@ -99,7 +99,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 								IsPrimaryKey: tmpRow.COLUMN_KEY === 'PRI',
 								IsAutoIncrement: (tmpRow.EXTRA || '').indexOf('auto_increment') >= 0,
 								DefaultValue: tmpRow.COLUMN_DEFAULT,
-								MeadowType: this._mapNativeTypeToMeadow(tmpRow.DATA_TYPE, tmpRow.COLUMN_KEY === 'PRI', (tmpRow.EXTRA || '').indexOf('auto_increment') >= 0, tmpRow.COLUMN_NAME)
+								MeadowType: this._mapNativeTypeToMeadow(tmpRow.DATA_TYPE, tmpRow.COLUMN_KEY === 'PRI', (tmpRow.EXTRA || '').indexOf('auto_increment') >= 0, tmpRow.COLUMN_NAME, pTableName)
 							});
 						}
 						return fCallback(null, tmpColumns);
@@ -163,7 +163,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 								IsPrimaryKey: tmpRow.is_primary_key,
 								IsAutoIncrement: tmpIsAuto,
 								DefaultValue: tmpRow.column_default,
-								MeadowType: this._mapNativeTypeToMeadow(tmpRow.data_type, tmpRow.is_primary_key, tmpIsAuto, tmpRow.column_name)
+								MeadowType: this._mapNativeTypeToMeadow(tmpRow.data_type, tmpRow.is_primary_key, tmpIsAuto, tmpRow.column_name, pTableName)
 							});
 						}
 						return fCallback(null, tmpColumns);
@@ -240,7 +240,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 									IsPrimaryKey: !!tmpRow.IS_PRIMARY_KEY,
 									IsAutoIncrement: !!tmpRow.IS_IDENTITY,
 									DefaultValue: tmpRow.COLUMN_DEFAULT,
-									MeadowType: this._mapNativeTypeToMeadow(tmpRow.DATA_TYPE, !!tmpRow.IS_PRIMARY_KEY, !!tmpRow.IS_IDENTITY, tmpRow.COLUMN_NAME)
+									MeadowType: this._mapNativeTypeToMeadow(tmpRow.DATA_TYPE, !!tmpRow.IS_PRIMARY_KEY, !!tmpRow.IS_IDENTITY, tmpRow.COLUMN_NAME, pTableName)
 								});
 							}
 							return fCallback(null, tmpColumns);
@@ -297,7 +297,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 							IsPrimaryKey: tmpIsPK,
 							IsAutoIncrement: tmpIsPK && (tmpRow.type || '').toUpperCase().indexOf('INTEGER') >= 0,
 							DefaultValue: tmpRow.dflt_value,
-							MeadowType: this._mapNativeTypeToMeadow(tmpRow.type || 'TEXT', tmpIsPK, tmpIsPK && (tmpRow.type || '').toUpperCase().indexOf('INTEGER') >= 0, tmpRow.name)
+							MeadowType: this._mapNativeTypeToMeadow(tmpRow.type || 'TEXT', tmpIsPK, tmpIsPK && (tmpRow.type || '').toUpperCase().indexOf('INTEGER') >= 0, tmpRow.name, pTableName)
 						});
 					}
 					return fCallback(null, tmpColumns);
@@ -317,7 +317,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 	/**
 	 * Map a native database type to a Meadow type.
 	 */
-	_mapNativeTypeToMeadow(pNativeType, pIsPrimaryKey, pIsAutoIncrement, pColumnName)
+	_mapNativeTypeToMeadow(pNativeType, pIsPrimaryKey, pIsAutoIncrement, pColumnName, pTableName)
 	{
 		if (pIsPrimaryKey && pIsAutoIncrement)
 		{
@@ -329,7 +329,16 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 		// is distinctive to Meadow schemas — virtually no other system uses it.
 		if (pColumnName)
 		{
-			if (pColumnName.startsWith('GUID'))       { return 'AutoGUID'; }
+			// AutoGUID is the table's primary identity-companion GUID:
+			// GUID<TableName> alongside ID<TableName>. Other GUIDxxx
+			// columns (e.g. a clone preserving its source's GUIDSource as
+			// a pass-through reference) stay as plain Strings — promoting
+			// every GUID-prefixed column to AutoGUID makes meadow's
+			// CollisionRename treat them ALL as unique-constrained, which
+			// silently rejects rows whose source-side GUID happens to
+			// collide (synth_guid() collisions at scale, etc.) with
+			// "Record with GUID X already exists!".
+			if (pColumnName === 'GUID' + (pTableName || ''))    { return 'AutoGUID'; }
 			if (pColumnName === 'CreateDate')          { return 'CreateDate'; }
 			if (pColumnName === 'CreatingIDUser')      { return 'CreateIDUser'; }
 			if (pColumnName === 'UpdateDate')          { return 'UpdateDate'; }
@@ -596,9 +605,25 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 
 	/**
 	 * Execute a read-only query against an external database connection.
+	 *
+	 * Two call shapes:
+	 *   executeQuery(pID, pSQL, fCallback)            — no parameters
+	 *   executeQuery(pID, pSQL, pParams, fCallback)   — parameterized SQL
+	 *
+	 * pParams is a positional array. Dialect-specific placeholders in the
+	 * SQL string ($1 / ? / @p1) are filled with the array's values in
+	 * driver-native fashion. Used by paged JOIN keyset pagination.
 	 */
-	executeQuery(pIDBeaconConnection, pSQL, fCallback)
+	executeQuery(pIDBeaconConnection, pSQL, pParams, fCallback)
 	{
+		// Back-compat: 3-arg form (pParams omitted) — pParams is the callback.
+		if (typeof pParams === 'function' && fCallback === undefined)
+		{
+			fCallback = pParams;
+			pParams = [];
+		}
+		if (!Array.isArray(pParams)) { pParams = []; }
+
 		let tmpConnectionBridge = this.fable.DataBeaconConnectionBridge;
 
 		if (!tmpConnectionBridge || !tmpConnectionBridge.isConnected(pIDBeaconConnection))
@@ -640,12 +665,21 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 					return fCallback(new Error('Could not get connection provider instance'));
 				}
 
-				this._runQuery(tmpType, tmpProvider, pSQL, fCallback);
+				this._runQuery(tmpType, tmpProvider, pSQL, pParams, fCallback);
 			});
 	}
 
-	_runQuery(pType, pProvider, pSQL, fCallback)
+	_runQuery(pType, pProvider, pSQL, pParams, fCallback)
 	{
+		// Back-compat: 4-arg form (pParams omitted).
+		if (typeof pParams === 'function' && fCallback === undefined)
+		{
+			fCallback = pParams;
+			pParams = [];
+		}
+		if (!Array.isArray(pParams)) { pParams = []; }
+		let tmpHasParams = pParams.length > 0;
+
 		switch (pType)
 		{
 			case 'MySQL':
@@ -655,12 +689,19 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 				{
 					return fCallback(new Error('MySQL provider not connected.'));
 				}
-				tmpPool.query(pSQL,
-					(pError, pResults) =>
-					{
-						if (pError) return fCallback(pError);
-						return fCallback(null, pResults);
-					});
+				let fHandle = (pError, pResults) =>
+				{
+					if (pError) return fCallback(pError);
+					return fCallback(null, pResults);
+				};
+				if (tmpHasParams)
+				{
+					tmpPool.query(pSQL, pParams, fHandle);
+				}
+				else
+				{
+					tmpPool.query(pSQL, fHandle);
+				}
 				break;
 			}
 			case 'PostgreSQL':
@@ -670,12 +711,14 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 				{
 					return fCallback(new Error('PostgreSQL provider not connected.'));
 				}
-				let tmpResult = tmpPool.query(pSQL,
-					(pError, pData) =>
-					{
-						if (pError) return fCallback(pError);
-						return fCallback(null, (pData && pData.rows) || pData || []);
-					});
+				let fHandle = (pError, pData) =>
+				{
+					if (pError) return fCallback(pError);
+					return fCallback(null, (pData && pData.rows) || pData || []);
+				};
+				let tmpResult = tmpHasParams
+					? tmpPool.query(pSQL, pParams, fHandle)
+					: tmpPool.query(pSQL, fHandle);
 				// node-postgres' Pool.query may return a Promise on newer
 				// versions when no callback is supplied — defensive support.
 				if (tmpResult && typeof tmpResult.then === 'function' && typeof tmpResult.catch === 'function')
@@ -694,7 +737,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 						return fCallback(new Error('SQLite provider not connected.'));
 					}
 					let tmpStmt = tmpDB.prepare(pSQL);
-					let tmpRows = tmpStmt.all();
+					let tmpRows = tmpHasParams ? tmpStmt.all(...pParams) : tmpStmt.all();
 					return fCallback(null, tmpRows);
 				}
 				catch (pError)
@@ -718,6 +761,12 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 						return fCallback(new Error('MSSQL provider not connected.'));
 					}
 					let tmpRequest = tmpPool.request();
+					// Bind positional params as @p1, @p2, ... matching the
+					// placeholders our emitters generate.
+					for (let i = 0; i < pParams.length; i++)
+					{
+						tmpRequest.input('p' + (i + 1), pParams[i]);
+					}
 					let tmpResult = tmpRequest.query(pSQL);
 					if (tmpResult && typeof tmpResult.then === 'function')
 					{
