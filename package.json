@@ -11,6 +11,8 @@
 		"test": "npx quack test",
 		"test-browser": "npx mocha test/DataBeacon_Browser_Integration_tests.js -u tdd --exit --timeout 120000",
 		"coverage": "npx quack coverage",
+		"brand": "node node_modules/pict-section-theme/bin/pict-section-theme-brand.js --manifest ../../../Retold-Modules-Manifest.json --module retold-databeacon --favicons source/services/web-app/web/favicons",
+		"prebuild": "npm run brand",
 		"build": "npx quack build",
 		"docker-build": "docker build -t retold-databeacon .",
 		"docker-run": "docker run -p 8389:8389 -v $(pwd)/data:/app/data retold-databeacon",
@@ -120,6 +122,7 @@
 		"pict-docuserve": "^1.0.1",
 		"puppeteer": "^24.40.0",
 		"quackage": "^1.2.3",
+		"retold-sharp": "^1.0.0",
 		"stricture": "^4.0.3",
 		"supertest": "^7.2.2"
 	},
@@ -140,9 +143,12 @@
 		"orator-static-server": "^2.1.4",
 		"pict": "^1.0.368",
 		"pict-application": "^1.0.34",
+		"pict-provider-theme": "^1.0.0",
 		"pict-router": "^1.0.10",
+		"pict-section-code": "^1.0.10",
 		"pict-section-connection-form": "^0.0.3",
-		"pict-section-modal": "^1.0.1",
+		"pict-section-modal": "^1.1.1",
+		"pict-section-theme": "^1.0.1",
 		"pict-view": "^1.0.68",
 		"retold-facto": "^1.0.0",
 		"ultravisor-beacon": "^0.0.15"
@@ -151,5 +157,25 @@
 		"meadow-connection-mongodb": "^1.0.3",
 		"meadow-connection-rocksdb": "^1.0.0",
 		"meadow-connection-solr": "^1.0.3"
+	},
+	"retold": {
+		"brand": {
+			"Hash": "retold-databeacon",
+			"Name": "DataBeacon",
+			"Tagline": "Connect, introspect, and expose remote databases",
+			"Palette": "ocean",
+			"Icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" width=\"96\" height=\"96\">\n\t\t<defs>\n\t\t\t<clipPath id=\"frame-retold-databeacon-filled-light\">\n\t\t\t\t<path d=\"M 48.00 2.00 L 87.84 25.00 L 87.84 71.00 L 48.00 94.00 L 8.16 71.00 L 8.16 25.00 Z\"/>\n\t\t\t</clipPath>\n\t\t</defs>\n\t\t<path d=\"M 48.00 2.00 L 87.84 25.00 L 87.84 71.00 L 48.00 94.00 L 8.16 71.00 L 8.16 25.00 Z\" fill=\"#28a9bf\"/>\n\t\t<g clip-path=\"url(#frame-retold-databeacon-filled-light)\"><circle cx=\"48\" cy=\"48\" r=\"39\" fill=\"#de5d3b\" opacity=\"0.85\"/>\n\t\t\t\t\t<circle cx=\"48\" cy=\"48\" r=\"28\" fill=\"rgba(255,255,255,0.18)\"/></g>\n\t\t<text x=\"48\" y=\"50\" text-anchor=\"middle\" dominant-baseline=\"central\"\n\t\t\tfont-family=\"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif\"\n\t\t\tfont-size=\"38\" font-weight=\"700\"\n\t\t\tfill=\"#ffffff\" letter-spacing=\"-1\">RD</text>\n\t</svg>",
+			"IconType": "svg",
+			"Favicon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" width=\"96\" height=\"96\">\n\t\t<defs>\n\t\t\t<clipPath id=\"fav-retold-databeacon-light\">\n\t\t\t\t<path d=\"M 48.00 2.00 L 87.84 25.00 L 87.84 71.00 L 48.00 94.00 L 8.16 71.00 L 8.16 25.00 Z\"/>\n\t\t\t</clipPath>\n\t\t</defs>\n\t\t<path d=\"M 48.00 2.00 L 87.84 25.00 L 87.84 71.00 L 48.00 94.00 L 8.16 71.00 L 8.16 25.00 Z\" fill=\"#28a9bf\"/>\n\t\t<g clip-path=\"url(#fav-retold-databeacon-light)\"><circle cx=\"48\" cy=\"48\" r=\"43\" fill=\"rgba(255,255,255,0.22)\"/></g>\n\t\t<text x=\"48\" y=\"50\" text-anchor=\"middle\" dominant-baseline=\"central\"\n\t\t\tfont-family=\"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif\"\n\t\t\tfont-size=\"60\" font-weight=\"800\"\n\t\t\tfill=\"#ffffff\" letter-spacing=\"-1\">R</text>\n\t</svg>",
+			"FaviconDark": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" width=\"96\" height=\"96\">\n\t\t<defs>\n\t\t\t<clipPath id=\"fav-retold-databeacon-dark\">\n\t\t\t\t<path d=\"M 48.00 2.00 L 87.84 25.00 L 87.84 71.00 L 48.00 94.00 L 8.16 71.00 L 8.16 25.00 Z\"/>\n\t\t\t</clipPath>\n\t\t</defs>\n\t\t<path d=\"M 48.00 2.00 L 87.84 25.00 L 87.84 71.00 L 48.00 94.00 L 8.16 71.00 L 8.16 25.00 Z\" fill=\"#6ac8d9\"/>\n\t\t<g clip-path=\"url(#fav-retold-databeacon-dark)\"><circle cx=\"48\" cy=\"48\" r=\"43\" fill=\"rgba(255,255,255,0.22)\"/></g>\n\t\t<text x=\"48\" y=\"50\" text-anchor=\"middle\" dominant-baseline=\"central\"\n\t\t\tfont-family=\"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif\"\n\t\t\tfont-size=\"60\" font-weight=\"800\"\n\t\t\tfill=\"#101418\" letter-spacing=\"-1\">R</text>\n\t</svg>",
+			"Colors": {
+				"Primary": "#28a9bf",
+				"Secondary": "#de5d3b",
+				"PrimaryLight": "#28a9bf",
+				"PrimaryDark": "#6ac8d9",
+				"SecondaryLight": "#de5d3b",
+				"SecondaryDark": "#e7a08d"
+			}
+		}
 	}
 }

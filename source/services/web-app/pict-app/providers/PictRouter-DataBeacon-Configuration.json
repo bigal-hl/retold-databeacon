@@ -45,10 +45,6 @@
 		{ "path": "/saved-queries/toggle",          "template": "{~LV:Pict.PictApplication.toggleSavedPanel()~}" },
 		{ "path": "/saved-queries/:guid/load",      "template": "{~LV:Pict.PictApplication.loadSavedQuery(Record.data.guid)~}" },
 		{ "path": "/saved-queries/:guid/edit",      "template": "{~LV:Pict.PictApplication.editSavedQuery(Record.data.guid)~}" },
-		{ "path": "/saved-queries/:guid/delete",    "template": "{~LV:Pict.PictApplication.deleteSavedQuery(Record.data.guid)~}" },
-
-		{ "path": "/theme/cycle-mode",              "template": "{~LV:Pict.PictApplication.cycleThemeMode()~}" },
-		{ "path": "/theme/picker/open",             "template": "{~LV:Pict.PictApplication.openThemePicker()~}" },
-		{ "path": "/theme/:key/apply",              "template": "{~LV:Pict.PictApplication.applyTheme(Record.data.key)~}" }
+		{ "path": "/saved-queries/:guid/delete",    "template": "{~LV:Pict.PictApplication.deleteSavedQuery(Record.data.guid)~}" }
 	]
 }

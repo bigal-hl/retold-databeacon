@@ -25,32 +25,32 @@ const _ViewConfiguration =
 		#DataBeacon-QueryPanel-Editor { min-height: 140px; }
 		#DataBeacon-QueryPanel-Editor .pict-code-editor-wrap
 		{
-			border: 1px solid var(--border-color);
+			border: 1px solid var(--theme-color-border-default, #808080);
 			border-radius: 4px;
-			background: var(--bg-input);
+			background: var(--theme-color-background-input, var(--theme-color-background-panel, #ffffff));
 		}
 		#DataBeacon-QueryPanel-Editor .pict-code-editor
 		{
-			background: var(--bg-input) !important;
-			color: var(--text-primary) !important;
+			background: var(--theme-color-background-input, var(--theme-color-background-panel, #ffffff)) !important;
+			color: var(--theme-color-text-primary, #1a1a1a) !important;
 			font-family: 'SFMono-Regular', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 			font-size: 13px;
 			min-height: 120px;
 		}
 		#DataBeacon-QueryPanel-Editor .pict-code-line-numbers
 		{
-			background: var(--bg-card) !important;
-			color: var(--text-muted) !important;
-			border-right: 1px solid var(--border-color) !important;
+			background: var(--theme-color-background-panel, #fffbf0) !important;
+			color: var(--theme-color-text-muted, #7a7a7a) !important;
+			border-right: 1px solid var(--theme-color-border-default, #808080) !important;
 		}
-		#DataBeacon-QueryPanel-Editor .keyword { color: var(--accent-primary); font-weight: 600; }
-		#DataBeacon-QueryPanel-Editor .string { color: var(--accent-success); }
-		#DataBeacon-QueryPanel-Editor .number { color: var(--accent-warning); }
-		#DataBeacon-QueryPanel-Editor .comment { color: var(--text-muted); font-style: italic; }
-		#DataBeacon-QueryPanel-Editor .operator { color: var(--accent-info); }
-		#DataBeacon-QueryPanel-Editor .function-name { color: var(--accent-info); }
+		#DataBeacon-QueryPanel-Editor .keyword { color: var(--theme-color-brand-primary, #000080); font-weight: 600; }
+		#DataBeacon-QueryPanel-Editor .string { color: var(--theme-color-status-success, #008000); }
+		#DataBeacon-QueryPanel-Editor .number { color: var(--theme-color-status-warning, #808000); }
+		#DataBeacon-QueryPanel-Editor .comment { color: var(--theme-color-text-muted, #7a7a7a); font-style: italic; }
+		#DataBeacon-QueryPanel-Editor .operator { color: var(--theme-color-status-info, #000080); }
+		#DataBeacon-QueryPanel-Editor .function-name { color: var(--theme-color-status-info, #000080); }
 		#DataBeacon-QueryPanel-Root .databeacon-export-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
-		#DataBeacon-QueryPanel-Root .databeacon-export-bar .databeacon-export-label { color: var(--text-muted); font-size: 12px; margin-right: 4px; }
+		#DataBeacon-QueryPanel-Root .databeacon-export-bar .databeacon-export-label { color: var(--theme-color-text-muted, #7a7a7a); font-size: 12px; margin-right: 4px; }
 	`,
 
 	Templates:
@@ -384,7 +384,7 @@ class PictViewDataBeaconQueryPanel extends libPictView
 
 	_execute()
 	{
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		let tmpSQL = this._readSQL().trim();
 		let tmpCID = this.pict.AppData.SelectedConnectionID;
 

@@ -28,25 +28,25 @@ const _ViewConfiguration =
 			user-select: none;
 		}
 		.databeacon-saved-header h2 { margin: 0; font-size: 16px; font-weight: 600; }
-		.databeacon-saved-header-right { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 13px; }
-		.databeacon-saved-body { padding: 0 20px 20px 20px; border-top: 1px solid var(--border-color); }
-		.databeacon-saved-empty { color: var(--text-muted); padding: 16px 0; font-style: italic; }
+		.databeacon-saved-header-right { display: flex; align-items: center; gap: 10px; color: var(--theme-color-text-muted, #7a7a7a); font-size: 13px; }
+		.databeacon-saved-body { padding: 0 20px 20px 20px; border-top: 1px solid var(--theme-color-border-default, #808080); }
+		.databeacon-saved-empty { color: var(--theme-color-text-muted, #7a7a7a); padding: 16px 0; font-style: italic; }
 		.databeacon-saved-row { }
-		.databeacon-saved-row.is-active-query { background: color-mix(in srgb, var(--accent-primary) 15%, transparent); }
+		.databeacon-saved-row.is-active-query { background: color-mix(in srgb, var(--theme-color-brand-primary, #000080) 15%, transparent); }
 		.databeacon-saved-name { font-weight: 600; }
-		.databeacon-saved-docpreview { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+		.databeacon-saved-docpreview { color: var(--theme-color-text-muted, #7a7a7a); font-size: 12px; margin-top: 2px; }
 		.databeacon-saved-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 		.databeacon-saved-form-grid .full { grid-column: 1 / span 2; }
-		.databeacon-saved-form-grid label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+		.databeacon-saved-form-grid label { display: block; font-size: 12px; color: var(--theme-color-text-secondary, #4a4a4a); margin-bottom: 4px; }
 		.databeacon-saved-form-grid input,
 		.databeacon-saved-form-grid textarea,
 		.databeacon-saved-form-grid select { width: 100%; }
 		.databeacon-saved-form-grid textarea { min-height: 80px; resize: vertical; }
 		.databeacon-saved-form-sqlpreview
 		{
-			background: var(--bg-input);
-			color: var(--text-primary);
-			border: 1px solid var(--border-color);
+			background: var(--theme-color-background-input, var(--theme-color-background-panel, #ffffff));
+			color: var(--theme-color-text-primary, #1a1a1a);
+			border: 1px solid var(--theme-color-border-default, #808080);
 			border-radius: 4px;
 			padding: 8px;
 			font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
@@ -214,7 +214,7 @@ class PictViewDataBeaconSavedQueriesList extends libPictView
 				tmpDBProvider.refreshIntrospectionViewData();
 			}
 		}
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		if (tmpModal && typeof tmpModal.toast === 'function')
 		{
 			tmpModal.toast(`Loaded “${tmpRecord.Name}” into the editor.`, { type: 'success' });
@@ -226,7 +226,7 @@ class PictViewDataBeaconSavedQueriesList extends libPictView
 		let tmpProvider = this.pict.providers['DataBeacon-SavedQueries'];
 		let tmpRecord = tmpProvider ? tmpProvider.get(pGUID) : null;
 		if (!tmpRecord) return;
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		if (!tmpModal || typeof tmpModal.confirm !== 'function')
 		{
 			tmpProvider.remove(pGUID);
@@ -281,7 +281,7 @@ class PictViewDataBeaconSavedQueriesList extends libPictView
 	_openForm(pContext)
 	{
 		let tmpProvider = this.pict.providers['DataBeacon-SavedQueries'];
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		if (!tmpProvider || !tmpModal) return;
 
 		let tmpExisting = (pContext.GUID) ? tmpProvider.get(pContext.GUID) : null;

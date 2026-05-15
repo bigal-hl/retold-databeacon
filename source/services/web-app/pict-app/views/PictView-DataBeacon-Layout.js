@@ -1,12 +1,12 @@
 /**
  * DataBeacon Layout View
  *
- * Shell: fixed left sidebar with navigation, plus a set of mount-point
- * panels for each page view. Each page view renders into its dedicated
- * `#DataBeacon-View-<Name>` panel.
+ * Owns the Pict-Section-Modal shell: a fixed Theme-TopBar at top, a
+ * resizable Sidebar on the left, a gear-toggled overlay Settings panel
+ * on the right, and a center workspace that hosts all six page panels.
  *
- * Navigation, active-state tracking, and CSS injection live here (the
- * layout is the only view that owns the chrome).
+ * Page views render into `#DataBeacon-View-<Name>` panels inside the
+ * center workspace; `setActiveView()` swaps which one is visible.
  */
 const libPictView = require('pict-view');
 
@@ -28,51 +28,29 @@ const _ViewConfiguration =
 	AutoRender: false,
 
 	CSS: /*css*/`
-		.sidebar-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-		.sidebar-header-text { flex: 1 1 auto; min-width: 0; }
-		.sidebar-header-controls { flex: 0 0 auto; }
-		.nav-item { display: flex; align-items: center; gap: 10px; }
-		.nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
-		.nav-icon svg { display: block; }
-		.nav-label { line-height: 1; }
-		.btn [data-databeacon-icon] { display: inline-flex; align-items: center; margin-right: 6px; vertical-align: middle; }
-		.btn [data-databeacon-icon] svg { display: block; }
-		.actions-cell .btn { display: inline-flex; align-items: center; }
+		html, body { height: 100%; margin: 0; padding: 0; }
+		body
+		{
+			background: var(--theme-color-background-primary, #ece9d8);
+			color:      var(--theme-color-text-primary,       #1a1a1a);
+			font-family: var(--theme-typography-family-sans,
+				-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
+		}
+		#DataBeacon-App { height: 100%; min-height: 0; overflow: hidden; }
+		.pict-modal-shell-host   { height: 100%; }
+		.pict-modal-shell        { background: var(--theme-color-background-primary, #ece9d8); }
+		.pict-modal-shell-panel  { background: var(--theme-color-background-panel,   var(--theme-color-background-secondary, #d8d3b8)); }
+		.pict-modal-shell-center { background: var(--theme-color-background-primary, #ece9d8); }
+
+		#DataBeacon-Workspace { height: 100%; min-height: 0; overflow: auto; padding: 24px; }
+		.view-panel { max-width: 1200px; }
 	`,
 
 	Templates:
 	[
 		{
 			Hash: 'DataBeacon-Layout-Shell',
-			Template: /*html*/`
-<div class="app-container">
-	<div class="sidebar">
-		<div class="sidebar-header">
-			<div class="sidebar-header-text">
-				<h2>DataBeacon{~D:AppData.Dashboard.BeaconNameDisplay~}</h2>
-				<span class="version">v0.0.1</span>
-			</div>
-			<div class="sidebar-header-controls" id="DataBeacon-ThemeSwitcher-Slot"></div>
-		</div>
-		<nav class="sidebar-nav" id="DataBeacon-Sidebar-Nav">{~TS:DataBeacon-Layout-NavItem:AppData.Layout.NavItems~}</nav>
-	</div>
-	<div class="main-content">
-		<div id="DataBeacon-View-Dashboard" class="view-panel"></div>
-		<div id="DataBeacon-View-Connections" class="view-panel" style="display:none;"></div>
-		<div id="DataBeacon-View-Introspection" class="view-panel" style="display:none;"></div>
-		<div id="DataBeacon-View-Endpoints" class="view-panel" style="display:none;"></div>
-		<div id="DataBeacon-View-Records" class="view-panel" style="display:none;"></div>
-		<div id="DataBeacon-View-SQL" class="view-panel" style="display:none;"></div>
-	</div>
-</div>`
-		},
-		{
-			Hash: 'DataBeacon-Layout-NavItem',
-			Template: /*html*/`
-<a class="nav-item" href="#/view/{~D:Record.Slug~}" data-view-nav="{~D:Record.View~}">
-	<span class="nav-icon" data-databeacon-icon="{~D:Record.Icon~}" data-icon-size="20"></span>
-	<span class="nav-label">{~D:Record.Label~}</span>
-</a>`
+			Template: /*html*/`<div id="DataBeacon-Layout-Mount" style="height:100%"></div>`
 		}
 	],
 
@@ -92,11 +70,12 @@ class PictViewDataBeaconLayout extends libPictView
 	constructor(pFable, pOptions, pServiceHash)
 	{
 		super(pFable, pOptions, pServiceHash);
+		this._shellPanelsBuilt = false;
 	}
 
 	onBeforeRender(pRenderable)
 	{
-		// Publish the nav-item list so the template can iterate over it.
+		// Publish the nav-item list so the Sidebar view can iterate over it.
 		if (!this.pict.AppData.Layout) this.pict.AppData.Layout = {};
 		this.pict.AppData.Layout.NavItems = _NavItems;
 		return super.onBeforeRender(pRenderable);
@@ -104,21 +83,75 @@ class PictViewDataBeaconLayout extends libPictView
 
 	onAfterRender(pRenderable, pRenderDestinationAddress, pRecord, pContent)
 	{
-		// Fill SVG icon placeholders in the sidebar (and anywhere else the layout owns).
-		let tmpIcons = this.pict.providers['DataBeacon-Icons'];
-		if (tmpIcons) tmpIcons.injectIconPlaceholders('#DataBeacon-App');
+		this.pict.CSSMap.injectCSS();
 
-		// Mount the theme-switcher widget into its sidebar-header slot.
-		if (this.pict.views.ThemeSwitcher) this.pict.views.ThemeSwitcher.render();
-
-		// Ensure every view's CSS (including pict-section-modal's) is in the DOM.
-		if (this.pict.CSSMap && typeof this.pict.CSSMap.injectCSS === 'function')
+		if (!this._shellPanelsBuilt)
 		{
-			this.pict.CSSMap.injectCSS();
+			this._buildShell();
+			this._shellPanelsBuilt = true;
 		}
 
 		return super.onAfterRender(pRenderable, pRenderDestinationAddress, pRecord, pContent);
 	}
+
+	_buildShell()
+	{
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
+		let tmpMount = document.getElementById('DataBeacon-Layout-Mount');
+		if (!tmpModal || !tmpMount) { return; }
+
+		this._shell = tmpModal.shell(tmpMount, { PersistenceKey: 'retold-databeacon' });
+
+		// Topbar — Theme-TopBar handles BrandMark + Nav slot + User slot.
+		this._shell.addPanel(
+		{
+			Hash: 'topbar', Side: 'top', Mode: 'fixed', Size: 48,
+			ContentDestinationId: 'Theme-TopBar', ContentView: 'Theme-TopBar'
+		});
+
+		// Left sidebar — host's navigation list.
+		this._shell.addPanel(
+		{
+			Hash: 'sidebar', Side: 'left', Mode: 'resizable',
+			Size: 220, MinSize: 180, MaxSize: 360, Title: 'Navigation',
+			ContentDestinationId: 'DataBeacon-Sidebar-Host',
+			ContentView: 'DataBeacon-Sidebar',
+			ResponsiveDrawer: 900
+		});
+
+		// Hidden overlay settings panel — only the gear button opens it.
+		this._shell.addPanel(
+		{
+			Hash: 'settings', Side: 'right', Mode: 'resizable',
+			Position: 'overlay', Size: 360, MinSize: 280, MaxSize: 540,
+			Hidden: true, Collapsed: true,
+			ContentDestinationId: 'DataBeacon-Settings-Panel',
+			ContentView: 'DataBeacon-SettingsPanel'
+		});
+
+		// Center — workspace for the six page views.
+		this._shell.center({ ContentDestinationId: 'DataBeacon-Workspace' });
+
+		// Mount the six page-panel destinations into the workspace.  Page
+		// views render into these ids; setActiveView() toggles visibility.
+		let tmpCenter = document.getElementById('DataBeacon-Workspace');
+		if (tmpCenter)
+		{
+			tmpCenter.innerHTML = ''
+				+ '<div id="DataBeacon-View-Dashboard"      class="view-panel"></div>'
+				+ '<div id="DataBeacon-View-Connections"    class="view-panel" style="display:none;"></div>'
+				+ '<div id="DataBeacon-View-Introspection"  class="view-panel" style="display:none;"></div>'
+				+ '<div id="DataBeacon-View-Endpoints"      class="view-panel" style="display:none;"></div>'
+				+ '<div id="DataBeacon-View-Records"        class="view-panel" style="display:none;"></div>'
+				+ '<div id="DataBeacon-View-SQL"            class="view-panel" style="display:none;"></div>';
+		}
+	}
+
+	getSidebarPanel()  { return this._shell ? this._shell.getPanel('sidebar')  : null; }
+	getSettingsPanel() { return this._shell ? this._shell.getPanel('settings') : null; }
+
+	toggleSidebar()       { let p = this.getSidebarPanel();  if (p && typeof p.toggle === 'function') p.toggle(); }
+	toggleSettingsPanel() { let p = this.getSettingsPanel(); if (p && typeof p.toggle === 'function') p.toggle(); }
 
 	/**
 	 * Switch the visible page panel and nav highlight, then trigger
@@ -140,17 +173,11 @@ class PictViewDataBeaconLayout extends libPictView
 			}
 		}
 
-		// Toggle .active on the nav items.
-		let tmpNavItems = this.pict.ContentAssignment.getElement('[data-view-nav]');
-		if (tmpNavItems && tmpNavItems.length)
-		{
-			for (let i = 0; i < tmpNavItems.length; i++)
-			{
-				let tmpName = tmpNavItems[i].getAttribute('data-view-nav');
-				if (tmpName === pViewName) tmpNavItems[i].classList.add('active');
-				else tmpNavItems[i].classList.remove('active');
-			}
-		}
+		// Re-render the sidebar so its active-state highlight follows the
+		// new selection; it iterates over AppData.Layout.NavItems and reads
+		// AppData.CurrentView to decide which item gets `.active`.
+		let tmpSidebar = this.pict.views['DataBeacon-Sidebar'];
+		if (tmpSidebar && typeof tmpSidebar.render === 'function') { tmpSidebar.render(); }
 
 		// Render the active page view (container pages cascade to sub-views).
 		let tmpView = this.pict.views[pViewName];

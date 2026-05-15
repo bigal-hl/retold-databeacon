@@ -163,7 +163,7 @@ class PictViewDataBeaconIntrospectionTables extends libPictView
 	_showDetail(pConnectionID, pTableName)
 	{
 		let tmpProvider = this.pict.providers.DataBeaconProvider;
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		if (!tmpModal) return;
 
 		tmpProvider.loadTableDetails(pConnectionID, pTableName, (pError, pData) =>

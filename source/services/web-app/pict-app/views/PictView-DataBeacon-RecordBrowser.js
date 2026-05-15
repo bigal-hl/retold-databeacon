@@ -27,7 +27,7 @@ const _ViewConfiguration =
 		}
 		.databeacon-records-toolbar .form-group label
 		{
-			font-size: 12px; line-height: 1; color: var(--text-muted);
+			font-size: 12px; line-height: 1; color: var(--theme-color-text-muted, #7a7a7a);
 			text-transform: uppercase; letter-spacing: 0.4px;
 			margin: 0;
 		}
@@ -62,11 +62,11 @@ const _ViewConfiguration =
 		   its height inside the column-flex form-group. */
 		.databeacon-records-filter-group { flex: 1 1 260px; min-width: 260px; max-width: 520px; }
 		.databeacon-records-filter-input { width: 100%; }
-		.databeacon-records-range { margin-top: 8px; color: var(--text-muted); font-size: 12px; }
+		.databeacon-records-range { margin-top: 8px; color: var(--theme-color-text-muted, #7a7a7a); font-size: 12px; }
 		.databeacon-records-count-badge
 		{
 			display: inline-block; padding: 1px 8px; margin-left: 6px;
-			border-radius: 10px; background: var(--bg-input); color: var(--text-primary);
+			border-radius: 10px; background: var(--theme-color-background-input, var(--theme-color-background-panel, #ffffff)); color: var(--theme-color-text-primary, #1a1a1a);
 			font-size: 11px; font-weight: 600;
 		}
 		.databeacon-records-pagination
@@ -77,15 +77,15 @@ const _ViewConfiguration =
 		.databeacon-records-pagination .btn { min-width: 34px; padding: 0 8px; height: 30px; }
 		.databeacon-records-pagination .btn.current
 		{
-			background: var(--accent-primary); color: var(--bg-card);
-			border-color: var(--accent-primary);
+			background: var(--theme-color-brand-primary, #000080); color: var(--theme-color-background-panel, #fffbf0);
+			border-color: var(--theme-color-brand-primary, #000080);
 		}
 		.databeacon-records-pagination-ellipsis
 		{
-			padding: 0 6px; color: var(--text-muted); font-size: 13px;
+			padding: 0 6px; color: var(--theme-color-text-muted, #7a7a7a); font-size: 13px;
 		}
 		.databeacon-export-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
-		.databeacon-export-bar .databeacon-export-label { color: var(--text-muted); font-size: 12px; margin-right: 4px; }
+		.databeacon-export-bar .databeacon-export-label { color: var(--theme-color-text-muted, #7a7a7a); font-size: 12px; margin-right: 4px; }
 	`,
 
 	Templates:
@@ -356,7 +356,7 @@ class PictViewDataBeaconRecordBrowser extends libPictView
 	{
 		let tmpProv = this.pict.providers.DataBeaconProvider;
 		let tmpExport = this.pict.providers['DataBeacon-Export'];
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		let tmpBrowser = this.pict.AppData.RecordBrowser || {};
 		let tmpTable = this.pict.AppData.SelectedTableName;
 		let tmpFilter = tmpBrowser.FilterString || '';

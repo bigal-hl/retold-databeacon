@@ -8,6 +8,7 @@ let libPictApplication = require('pict-application');
 let libPictView = require('pict-view');
 let libPictRouter = require('pict-router');
 let libPictSectionCode = require('pict-section-code');
+let libPictSectionTheme = require('pict-section-theme');
 
 // Application
 let libDataBeaconApplication = require('./Pict-Application-DataBeacon.js');
@@ -15,12 +16,17 @@ let libDataBeaconApplication = require('./Pict-Application-DataBeacon.js');
 // Providers
 let libDataBeaconProvider = require('./providers/Pict-Provider-DataBeacon.js');
 let libDataBeaconIconsProvider = require('./providers/Pict-Provider-DataBeacon-Icons.js');
-let libDataBeaconThemeProvider = require('./providers/Pict-Provider-DataBeacon-Theme.js');
 let libDataBeaconExportProvider = require('./providers/Pict-Provider-DataBeacon-Export.js');
 let libDataBeaconSavedQueriesProvider = require('./providers/Pict-Provider-DataBeacon-SavedQueries.js');
 
-// Views — Layout + page/container views
+// Views — Layout + chrome
 let libViewLayout = require('./views/PictView-DataBeacon-Layout.js');
+let libViewSidebar = require('./views/PictView-DataBeacon-Sidebar.js');
+let libViewTopBarNav = require('./views/PictView-DataBeacon-TopBar-Nav.js');
+let libViewTopBarUser = require('./views/PictView-DataBeacon-TopBar-User.js');
+let libViewSettingsPanel = require('./views/PictView-DataBeacon-SettingsPanel.js');
+
+// Views — page / container views
 let libViewDashboard = require('./views/PictView-DataBeacon-Dashboard.js');
 let libViewConnections = require('./views/PictView-DataBeacon-Connections.js');
 let libViewIntrospection = require('./views/PictView-DataBeacon-Introspection.js');
@@ -35,7 +41,6 @@ let libViewIntrospectionControls = require('./views/PictView-DataBeacon-Introspe
 let libViewIntrospectionTables = require('./views/PictView-DataBeacon-IntrospectionTables.js');
 let libViewRecordBrowser = require('./views/PictView-DataBeacon-RecordBrowser.js');
 let libViewQueryPanel = require('./views/PictView-DataBeacon-QueryPanel.js');
-let libViewThemeSwitcher = require('./views/PictView-DataBeacon-ThemeSwitcher.js');
 let libViewSavedQueriesList = require('./views/PictView-DataBeacon-SavedQueriesList.js');
 
 // Expose the application class on window for Pict.safeLoadPictApplication

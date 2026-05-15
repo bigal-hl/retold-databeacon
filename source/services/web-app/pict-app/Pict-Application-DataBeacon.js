@@ -7,19 +7,26 @@
  */
 const libPictApplication = require('pict-application');
 const libPictSectionModal = require('pict-section-modal');
+const libPictSectionTheme = require('pict-section-theme');
 const libPictSectionCode = require('pict-section-code');
 const libPictSectionConnectionForm = require('pict-section-connection-form');
 const libPictRouter = require('pict-router');
 const libPictRouterConfig = require('./providers/PictRouter-DataBeacon-Configuration.json');
+const libDataBeaconBrand = require('./DataBeacon-Brand.js');
 
 const libDataBeaconProvider = require('./providers/Pict-Provider-DataBeacon.js');
 const libDataBeaconIconsProvider = require('./providers/Pict-Provider-DataBeacon-Icons.js');
-const libDataBeaconThemeProvider = require('./providers/Pict-Provider-DataBeacon-Theme.js');
 const libDataBeaconExportProvider = require('./providers/Pict-Provider-DataBeacon-Export.js');
 const libDataBeaconSavedQueriesProvider = require('./providers/Pict-Provider-DataBeacon-SavedQueries.js');
 
-// Page / container views
+// Shell + chrome views
 const libViewLayout = require('./views/PictView-DataBeacon-Layout.js');
+const libViewSidebar = require('./views/PictView-DataBeacon-Sidebar.js');
+const libViewTopBarNav = require('./views/PictView-DataBeacon-TopBar-Nav.js');
+const libViewTopBarUser = require('./views/PictView-DataBeacon-TopBar-User.js');
+const libViewSettingsPanel = require('./views/PictView-DataBeacon-SettingsPanel.js');
+
+// Page / container views
 const libViewDashboard = require('./views/PictView-DataBeacon-Dashboard.js');
 const libViewConnections = require('./views/PictView-DataBeacon-Connections.js');
 const libViewIntrospection = require('./views/PictView-DataBeacon-Introspection.js');
@@ -34,7 +41,6 @@ const libViewIntrospectionControls = require('./views/PictView-DataBeacon-Intros
 const libViewIntrospectionTables = require('./views/PictView-DataBeacon-IntrospectionTables.js');
 const libViewRecordBrowser = require('./views/PictView-DataBeacon-RecordBrowser.js');
 const libViewQueryPanel = require('./views/PictView-DataBeacon-QueryPanel.js');
-const libViewThemeSwitcher = require('./views/PictView-DataBeacon-ThemeSwitcher.js');
 const libViewSavedQueriesList = require('./views/PictView-DataBeacon-SavedQueriesList.js');
 
 class DataBeaconApplication extends libPictApplication
@@ -45,15 +51,40 @@ class DataBeaconApplication extends libPictApplication
 
 		this.serviceType = 'DataBeaconApplication';
 
-		// Providers — Theme comes first so the body data-attributes are
-		// applied before any view renders (no flash of un-themed content).
-		this.pict.addProvider('DataBeacon-Theme', libDataBeaconThemeProvider.default_configuration, libDataBeaconThemeProvider);
+		// Data + utility providers.
 		this.pict.addProvider('DataBeaconProvider', libDataBeaconProvider.default_configuration, libDataBeaconProvider);
 		this.pict.addProvider('DataBeacon-Icons', libDataBeaconIconsProvider.default_configuration, libDataBeaconIconsProvider);
 		this.pict.addProvider('DataBeacon-Export', libDataBeaconExportProvider.default_configuration, libDataBeaconExportProvider);
 		this.pict.addProvider('DataBeacon-SavedQueries', libDataBeaconSavedQueriesProvider.default_configuration, libDataBeaconSavedQueriesProvider);
 
-		// Shell + page views
+		// pict-section-modal must exist before the Layout view calls shell().
+		this.pict.addView('Pict-Section-Modal', libPictSectionModal.default_configuration, libPictSectionModal);
+
+		// Slot + chrome views must be registered BEFORE the Theme-Section provider
+		// — its bootstrap looks slot views up by hash when it wires Theme-TopBar.
+		this.pict.addView('DataBeacon-TopBar-Nav',    libViewTopBarNav.default_configuration,    libViewTopBarNav);
+		this.pict.addView('DataBeacon-TopBar-User',   libViewTopBarUser.default_configuration,   libViewTopBarUser);
+		this.pict.addView('DataBeacon-Sidebar',       libViewSidebar.default_configuration,      libViewSidebar);
+		this.pict.addView('DataBeacon-SettingsPanel', libViewSettingsPanel.default_configuration, libViewSettingsPanel);
+
+		// Theme-Section: registers the Theme provider, mounts the bundled theme
+		// catalog, wires localStorage persistence, applies the default theme,
+		// and stamps the brand into the topbar's BrandMark + nav/user slots.
+		this.pict.addProvider('Theme-Section',
+		{
+			ApplyDefault: 'retold-default',
+			DefaultMode:  'system',
+			DefaultScale: 1.0,
+			Brand:        libDataBeaconBrand,
+			Views:        ['Picker', 'ModeToggle', 'ScaleSelect', 'BrandMark', 'TopBar'],
+			ViewOptions:
+			{
+				TopBar: { NavView: 'DataBeacon-TopBar-Nav', UserView: 'DataBeacon-TopBar-User', Height: 48 }
+			}
+		}, libPictSectionTheme);
+
+		// Layout owns the shell; page views render into the workspace destinations
+		// the layout's shell creates.
 		this.pict.addView('Layout', libViewLayout.default_configuration, libViewLayout);
 		this.pict.addView('Dashboard', libViewDashboard.default_configuration, libViewDashboard);
 		this.pict.addView('Connections', libViewConnections.default_configuration, libViewConnections);
@@ -84,7 +115,6 @@ class DataBeaconApplication extends libPictApplication
 		this.pict.addView('IntrospectionTables', libViewIntrospectionTables.default_configuration, libViewIntrospectionTables);
 		this.pict.addView('RecordBrowser', libViewRecordBrowser.default_configuration, libViewRecordBrowser);
 		this.pict.addView('QueryPanel', libViewQueryPanel.default_configuration, libViewQueryPanel);
-		this.pict.addView('ThemeSwitcher', libViewThemeSwitcher.default_configuration, libViewThemeSwitcher);
 		this.pict.addView('SavedQueriesList', libViewSavedQueriesList.default_configuration, libViewSavedQueriesList);
 
 		// SQL code editor (pict-section-code + CodeJar) — registered separately so the
@@ -100,9 +130,6 @@ class DataBeaconApplication extends libPictApplication
 			DefaultCode: '',
 			AutoRender: false
 		}, libPictSectionCode);
-
-		// Modal service (pict-section-modal exposes show/confirm/toast via pict.views.PictSectionModal)
-		this.pict.addView('PictSectionModal', libPictSectionModal.default_configuration, libPictSectionModal);
 
 		// Router -- Navigo in hash mode.  Every navigation and action in the
 		// DataBeacon web app flows through `<a href="#/...">` anchors dispatched
@@ -137,6 +164,7 @@ class DataBeaconApplication extends libPictApplication
 			BeaconStatusLabel: 'Unknown',
 			BeaconBadgeClass: 'badge-neutral',
 			BeaconName: 'retold-databeacon',
+			BeaconNameDisplay: '',
 			ConnectionSummary: []
 		};
 		this.pict.AppData.Introspection =
@@ -170,6 +198,11 @@ class DataBeaconApplication extends libPictApplication
 			Rows: []
 		};
 
+		// Topbar-driven AppData. PageTitle drives the section label rendered in
+		// the Nav slot; setActiveView() updates it and re-renders the topbar.
+		this.pict.AppData.DataBeacon = this.pict.AppData.DataBeacon || {};
+		this.pict.AppData.DataBeacon.PageTitle = 'Dashboard';
+
 		// Keep a window handle for legacy/debug access only; views do NOT rely on it.
 		if (typeof window !== 'undefined') window.DataBeaconApp = this;
 
@@ -202,10 +235,23 @@ class DataBeaconApplication extends libPictApplication
 	setActiveView(pViewName)
 	{
 		this.pict.AppData.CurrentView = pViewName;
+		this.pict.AppData.DataBeacon = this.pict.AppData.DataBeacon || {};
+		this.pict.AppData.DataBeacon.PageTitle = pViewName;
 		if (this.pict.views.Layout && typeof this.pict.views.Layout.setActiveView === 'function')
 		{
 			this.pict.views.Layout.setActiveView(pViewName);
 		}
+		this.renderTopBar();
+	}
+
+	// Re-render the Theme-TopBar's nav + user slot views without touching the
+	// shared Theme-TopBar chrome itself (its background, brand mark, etc.).
+	renderTopBar()
+	{
+		let tmpNav  = this.pict.views['DataBeacon-TopBar-Nav'];
+		let tmpUser = this.pict.views['DataBeacon-TopBar-User'];
+		if (tmpNav  && typeof tmpNav.render  === 'function') { tmpNav.render(); }
+		if (tmpUser && typeof tmpUser.render === 'function') { tmpUser.render(); }
 	}
 
 	// Legacy shim kept for window.DataBeaconApp.navigateTo() callers.  New
@@ -218,7 +264,7 @@ class DataBeaconApplication extends libPictApplication
 	disconnectConnection(pID)          { return this.pict.providers.DataBeaconProvider.disconnectConnection(parseInt(pID, 10)); }
 	testConnection(pID)
 	{
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		this.pict.providers.DataBeaconProvider.testConnection(parseInt(pID, 10),
 			(pErr, pData) =>
 			{
@@ -228,7 +274,7 @@ class DataBeaconApplication extends libPictApplication
 	}
 	deleteConnection(pID)
 	{
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		tmpModal.confirm('Are you sure you want to delete this connection?',
 			{
 				title: 'Delete Connection',
@@ -243,7 +289,7 @@ class DataBeaconApplication extends libPictApplication
 	introspectConnection(pID)
 	{
 		let tmpID = parseInt(pID, 10);
-		let tmpModal = this.pict.views.PictSectionModal;
+		let tmpModal = this.pict.views['Pict-Section-Modal'];
 		this.pict.providers.DataBeaconProvider.introspect(tmpID,
 			(pErr, pData) =>
 			{
@@ -399,23 +445,6 @@ class DataBeaconApplication extends libPictApplication
 	{
 		let tmpView = this.pict.views.SavedQueriesList;
 		if (tmpView && typeof tmpView._deleteQuery === 'function') { tmpView._deleteQuery(pGUID); }
-	}
-
-	// ── Theme ───────────────────────────────────────────────────────────────
-	cycleThemeMode()
-	{
-		let tmpProv = this.pict.providers['DataBeacon-Theme'];
-		if (tmpProv && typeof tmpProv.cycleMode === 'function') { tmpProv.cycleMode(); }
-	}
-	openThemePicker()
-	{
-		let tmpView = this.pict.views.ThemeSwitcher;
-		if (tmpView && typeof tmpView._openPicker === 'function') { tmpView._openPicker(); }
-	}
-	applyTheme(pKey)
-	{
-		let tmpView = this.pict.views.ThemeSwitcher;
-		if (tmpView && typeof tmpView._applyThemeFromTile === 'function') { tmpView._applyThemeFromTile(pKey); }
 	}
 
 	// ── Helpers ─────────────────────────────────────────────────────────────
