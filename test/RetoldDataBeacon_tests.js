@@ -1257,5 +1257,72 @@ suite
 				);
 			}
 		);
+
+		// ----------------------------------------------------------------
+		//  _persistIntrospectionResults large-batch loop integrity
+		//
+		//  Surfaced as "RangeError: Maximum call stack size exceeded" at
+		//  FoxHound.clone inside the per-table Anticipate loop on a 173-
+		//  table lake. Root cause: each anticipated step's fStepCallback()
+		//  fired synchronously off the DAL's doReads/doUpdate/doCreate, so
+		//  Anticipate.checkQueue recursed N deep without yielding.
+		//
+		//  The fix wraps the two fStepCallback() sites at the bottom of
+		//  _persistIntrospectionResults in setImmediate so each step yields
+		//  to the event loop regardless of DAL backend.
+		//
+		//  This test exercises the loop with 500 synthetic results to assert
+		//  it still completes cleanly (smoke). It does NOT by itself
+		//  reproduce the stack overflow in a SQLite-backed test rig because
+		//  meadow-connection-sqlite yields between ops; an in-memory-provider
+		//  variant would be a stronger guard.
+		// ----------------------------------------------------------------
+		suite
+		(
+			'_persistIntrospectionResults large-batch (regression)',
+			function ()
+			{
+				let _Introspector = null;
+
+				suiteSetup
+				(
+					function ()
+					{
+						_Introspector = _Fable.DataBeaconSchemaIntrospector;
+						libAssert.ok(_Introspector, 'SchemaIntrospector service should be available');
+						libAssert.strictEqual(typeof _Introspector._persistIntrospectionResults, 'function',
+							'_persistIntrospectionResults should exist');
+					}
+				);
+
+				test
+				(
+					'500 synthetic tables persist via _persistIntrospectionResults loop',
+					function (fDone)
+					{
+						let tmpResults = [];
+						for (let i = 0; i < 500; i++)
+						{
+							tmpResults.push(
+								{
+									TableName: `PersistLoopProbe_${i}`,
+									RowCountEstimate: 0,
+									Columns: [ { Name: 'ID', NativeType: 'INTEGER', MaxLength: null } ]
+								});
+						}
+						// IDBeaconConnection=999999 is intentionally a value
+						// no real connection record uses, so each step takes
+						// the "create new" branch against an isolated slice
+						// of the DAL.
+						_Introspector._persistIntrospectionResults(999999, tmpResults,
+							function (pError)
+							{
+								libAssert.ifError(pError);
+								return fDone();
+							});
+					}
+				);
+			}
+		);
 	}
 );

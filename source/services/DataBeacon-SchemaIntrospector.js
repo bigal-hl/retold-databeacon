@@ -568,7 +568,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 									(pError) =>
 									{
 										if (pError) this.fable.log.warn(`Error updating IntrospectedTable for ${tmpResult.TableName}: ${pError}`);
-										return fStepCallback();
+										return setImmediate(fStepCallback);
 									});
 							}
 							else
@@ -593,7 +593,7 @@ class DataBeaconSchemaIntrospector extends libFableServiceProviderBase
 									(pError) =>
 									{
 										if (pError) this.fable.log.warn(`Error creating IntrospectedTable for ${tmpResult.TableName}: ${pError}`);
-										return fStepCallback();
+										return setImmediate(fStepCallback);
 									});
 							}
 						});
