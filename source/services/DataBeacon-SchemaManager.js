@@ -693,6 +693,17 @@ class DataBeaconSchemaManager extends libFableServiceProviderBase
 			// neutral default for Float-typed descriptor columns.
 			tmpResult.Size = '10,2';
 		}
+		// Forward source-side nullability. The descriptor convention is
+		// `Nullable: false` to mark a NOT NULL column; anything else
+		// (`true`, absent, undefined) leaves the column nullable. Each
+		// meadow engine connector's `generateCreateTableStatement` reads
+		// `tmpColumn.Nullable === false` to emit `NOT NULL` on the column;
+		// engines that haven't been taught about Nullable yet just ignore
+		// it, so this is a safe forward-only addition.
+		if (pCol.Nullable === false)
+		{
+			tmpResult.Nullable = false;
+		}
 		return tmpResult;
 	}
 
