@@ -132,6 +132,7 @@
 		"meadow-connection-manager": "^1.1.2",
 		"meadow-connection-mssql": "^1.0.23",
 		"meadow-connection-mysql": "^1.0.19",
+		"meadow-connection-oracle": "^1.0.1",
 		"meadow-connection-postgresql": "^1.0.5",
 		"meadow-connection-retold-databeacon": "^1.0.0",
 		"meadow-connection-sqlite": "^1.0.20",
