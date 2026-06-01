@@ -5,6 +5,8 @@ A deployable data beacon service for the Retold ecosystem. Connect to remote dat
 
 DataBeacon is designed to run on remote machines where you need to bridge access to databases that are not directly reachable from your primary infrastructure. Deploy it as a Docker container, point it at one or many databases, and instantly get REST APIs and Ultravisor beacon integration for any table you discover.
 
+> **[Read the Retold-Databeacon Documentation](https://fable-retold.github.io/retold-databeacon/)** - interactive docs with the full API reference.
+
 ## Features
 
 - **Multi-Database Connectivity** -- connect to MySQL, PostgreSQL, MSSQL, SQLite, MongoDB, RocksDB, and Solr through meadow-connection-manager
@@ -55,9 +57,6 @@ $ npm install -g retold-databeacon
 
 ```sh
 # Initialize a database and start the server
-
-> **[&#9654; Read the Retold-Databeacon Documentation](https://fable-retold.github.io/retold-databeacon/)** &mdash; interactive docs with the full API reference.
-
 retold-databeacon init
 retold-databeacon serve
 # Or with options
