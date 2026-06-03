@@ -2,43 +2,8 @@
 
 ## Project Structure
 
-```
-retold-databeacon/
-├── bin/
-│   └── retold-databeacon.js              CLI entry point (serve, init commands)
-├── source/
-│   ├── Retold-DataBeacon.js              Core service class
-│   └── services/
-│       ├── DataBeacon-ConnectionBridge.js     Connection persistence + runtime management
-│       ├── DataBeacon-SchemaIntrospector.js   Dialect-specific schema discovery
-│       ├── DataBeacon-DynamicEndpointManager.js  Meadow endpoint generation
-│       ├── DataBeacon-BeaconProvider.js       Ultravisor beacon registration
-│       └── web-app/
-│           ├── pict-app/
-│           │   ├── Pict-DataBeacon-Bundle.js          Browserify entry point
-│           │   ├── Pict-Application-DataBeacon.js     Pict application class
-│           │   ├── providers/
-│           │   │   └── Pict-Provider-DataBeacon.js    API provider (fetch wrapper)
-│           │   └── views/
-│           │       ├── PictView-DataBeacon-Layout.js        Shell layout + sidebar nav
-│           │       ├── PictView-DataBeacon-Dashboard.js     Status overview
-│           │       ├── PictView-DataBeacon-Connections.js   Connection CRUD UI
-│           │       ├── PictView-DataBeacon-Introspection.js Table/column browser
-│           │       ├── PictView-DataBeacon-Endpoints.js     Endpoint management
-│           │       └── PictView-DataBeacon-Records.js       Record browser
-│           └── web/
-│               ├── index.html            HTML shell
-│               └── css/
-│                   └── databeacon.css    Application styles
-├── model/
-│   └── MeadowModel-DataBeacon.json      Meadow model for internal entities
-├── test/
-│   └── RetoldDataBeacon_tests.js         Mocha TDD test suite
-├── data/                                 SQLite database directory (gitignored)
-├── Dockerfile                            Multi-stage Docker build
-├── .quackage.json                        Quackage build configuration
-└── package.json
-```
+<!-- bespoke diagram: edit diagrams/project-structure.mmd or .hints.json, then: npx pict-renderer-graph build modules/apps/retold-databeacon/docs -->
+![Project Structure](diagrams/project-structure.svg)
 
 ## Core Service Lifecycle
 
